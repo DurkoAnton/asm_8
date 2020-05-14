@@ -33,8 +33,8 @@ handler PROC
 	push cs                           
 	pop ds                            
     
-   ; mov ah,0h
-   ; int 16h
+  ;  mov ah,0h
+;    int 16h
     in  al, 60h         
     cmp al, 01h                     
     je escHandler
@@ -437,12 +437,7 @@ escHandler:
     
     mov es,cs:2ch 
     mov ah,49h
-    int 21h   
-    
-    push cs 
-    pop es  
-    mov ah,49h  
-    int 21h ;                         
+    int 21h                          
     
 intEnd:     
 	iret                              
