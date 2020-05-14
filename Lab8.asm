@@ -64,7 +64,7 @@ downHandler:
 	mov cx, 0			        
 	int 21h                        
 	
-	jc noFileEnd              
+	jc noFile_End              
 	                
 	mov sourceId, ax
     
@@ -214,7 +214,7 @@ upHandler:
 	mov cx, 0			        
 	int 21h                       
 	
-	jc nofileEnd  
+	jc noFile_End  
 	            
 	mov flag,0
 	mov flag_,0                
@@ -403,7 +403,7 @@ endHandler:
 	mov bx, sourceID          
 	int 21h  
 	                       
-nofileEnd:
+noFile_End:
                          
     mov al, 20h                       
     out 20h, al                        
