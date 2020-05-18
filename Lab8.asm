@@ -96,16 +96,6 @@ downHandler:
     mov es, ax
     mov di, 0 
     
-    mov cx,80 
-    imul cx,25 
-    
-loopClear_:
-    mov al, ' ' 
-    mov es:[di], al
-    add di, 2
-    loop loopClear_   
-    xor di,di               
-
 readAndOutputSymbol: 
                                 
     mov ah, 3Fh                  
@@ -135,7 +125,7 @@ addSpacesInEndString:
     cmp flag,0
     jne checkEnd    
     
-    mov al, 1                ; 
+    mov al, 1                 
     mov bx, sourceId
 	mov ah, 42h             
 	mov cx, 0
@@ -242,17 +232,6 @@ moveBack:
     add ax,dx                        
 	cmp ax,0 
 	je popCx_
-	jne readNext
- 	
-	mov al, 0                 
-    mov bx, sourceId
-	mov ah, 42h        
-	mov cx, 0
-	mov dx, 0		 
-	int 21h       
-	
-	push cx
-	jmp popCx_   
 	
 readNext:   
     mov ah, 3Fh                   
@@ -291,14 +270,6 @@ loopCl:
     mov ax, 0b800h
     mov es, ax    
     xor di,di 
-    mov cx,80
-    imul cx,25    
-    
-loopClear:
-    mov al, ' ' 
-    mov es:[di], al
-    add di, 2
-    loop loopClear  
     
     mov flag,0    
     mov di, 0  
@@ -601,6 +572,18 @@ main:
 	call parseCMD                     
                                      
 	call setHandler                			          
+    
+     mov ax, 0b800h
+    mov es, ax    
+    xor di,di 
+    mov cx,80
+    imul cx,25    
+    
+loopClear:
+    mov al, ' ' 
+    mov es:[di], al
+    add di, 2
+    loop loopClear  
                                       
 	mov ah, 31h                      
 	mov al, 0                                                              
