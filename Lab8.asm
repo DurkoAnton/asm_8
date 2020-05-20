@@ -17,11 +17,11 @@ flag_                 db ?
 error                 db "Open file error!$"    
 file                  db 128 dup(?) 
 fileId                dw 0
-intOldHandler         dd 0                    
+oldHandler            dd 0                    
                                       
 handler PROC                        
 	pushf  
-	call  cs:intOldHandler    
+	call  cs:oldHandler    
 	                                                
 	push ds                           
     push es                           
@@ -42,7 +42,7 @@ handler PROC
     cmp ah, 48h
     je upMove            
     cmp ah, 01h                     
-    je escHandler
+    je escKey
                                
     pop     di                      
     pop     dx
@@ -55,9 +55,10 @@ handler PROC
     iret     
 
 downMove:
-   
+
     mov ax,0C00h 
-    int 21h
+    int 21h                
+    
     mov flag,0
     mov flag_,0      
     
@@ -83,8 +84,19 @@ downMove:
 	int 21h  
 	
 	cmp ax,0
-	je endRead 
+	je endRead   
 	
+	mov ax, 0b800h
+    mov es, ax    
+    xor di,di 
+    mov cx,2000 
+    
+loopClear:
+    mov al, ' ' 
+    mov es:[di], al
+    add di, 2
+loop loopClear 
+
 	mov al, 0               
     mov bx, fileId
 	mov ah, 42h            
@@ -110,8 +122,11 @@ readAndOutputSymbol:
     cmp buffer[0],0Dh  
     jne notEndString   
         
-addSpacesInEndString:       
- 
+addSpacesInEndString:
+       
+    cmp di,4000
+    jge endRead
+    
     mov al,' '  
     mov es:[di],al
     inc di 
@@ -183,16 +198,7 @@ checkEnd_:
 jmp readAndOutputSymbol
  
 endRead: 
-
-    cmp di,4000
-    jge notNeedAddSpace
-
-    mov al,' '  
-    mov es:[di],al
-    add di,2  
-    jmp endRead
-       
-notNeedAddSpace:   
+   
     mov al, 1                
     mov bx, fileId
 	mov ah, 42h             
@@ -202,7 +208,7 @@ notNeedAddSpace:
 	mov hignPartPosLastSymbol,dx
 	mov lowPartPosLastSymbol,ax  
 
-jmp endHandler
+    jmp endHandler
     
 upMove:    
 
@@ -214,7 +220,13 @@ upMove:
     add si,lowPartPosLastSymbol    
     cmp si,0
     je endHandler   
-     
+    
+    cmp hignPartPos,0
+    jne openFileToRead 
+    cmp lowPartPos,1
+    je  endHandler
+    
+    openFileToRead:
     mov ah, 3Dh			      
 	mov al, 0			 
 	lea dx, fileName     
@@ -276,7 +288,6 @@ popCx:
 	pop cx
 	loop moveBack
 pushCx:   
-
 	push cx
 popCx_:  
     pop cx
@@ -302,8 +313,11 @@ readAndOutputSymbol_:
     cmp buffer[0],0Dh  
     jne notEndString_      
 
-addSpacesInEndString_:       
- 
+addSpacesInEndString_:    
+   
+    cmp di,4000
+    jge endRead_       
+    
     mov al,' '  
     dec cx
     mov es:[di],al
@@ -401,11 +415,11 @@ restoreReg:
 	pop es                            
 	pop ds	                          
     iret     
-escHandler:        
+escKey:        
 
     mov ax,2509h
-    mov dx,word ptr cs:[intOldHandler]
-    mov ds,word ptr cs:[intOldHandler+2]
+    mov dx,word ptr cs:[oldHandler]
+    mov ds,word ptr cs:[oldHandler+2]
     int 21h 
    
 	pop di                            
@@ -418,7 +432,7 @@ escHandler:
 	
     mov es,cs:2ch 
     mov ah,49h 
-    int 21h   
+    int 21h    
             
 	iret                              
 ENDP                                  
@@ -537,8 +551,8 @@ main:
 	mov al, 09h                   
 	int 21h                            
                                                                                                                                                          
-	mov word ptr  intOldHandler, bx     
-	mov word ptr  intOldHandler + 2, es
+	mov word ptr  oldHandler, bx     
+	mov word ptr  oldHandler + 2, es
                                      
 	push ds			                  
 	pop es                           
@@ -548,18 +562,7 @@ main:
 	mov dx, offset handler            
 	int 21h                          
                                       
-	sti                    			          
-    
-    mov ax, 0b800h
-    mov es, ax    
-    xor di,di 
-    mov cx,2000 
-    
-loopClear:
-    mov al, ' ' 
-    mov es:[di], al
-    add di, 2
-loop loopClear  
+	sti                    			           
                                       
 	mov ah, 31h                      
 	mov al, 0                                                              
