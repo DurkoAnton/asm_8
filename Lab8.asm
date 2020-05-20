@@ -7,7 +7,7 @@ start:
 	jmp main               
  
 buffer                db  128 dup(?)
-sourcePath            db  128 dup(?)
+fileName              db  128 dup(?)
 hignPartPos           dw 0       
 lowPartPos            dw 0   
 hignPartPosLastSymbol dw 0       
@@ -16,7 +16,7 @@ flag                  db ?
 flag_                 db ?
 error                 db "Open file error!$"    
 file                  db 128 dup(?) 
-sourceID              dw 0
+fileId                dw 0
 intOldHandler         dd 0                    
                                       
 handler PROC                        
@@ -36,14 +36,14 @@ handler PROC
 
     mov ah,11h   
     int 16h 
-               
+    
+    cmp ah, 50h                        
+    je downMove 
+    cmp ah, 48h
+    je upMove            
     cmp ah, 01h                     
     je escHandler
-    cmp ah, 48h
-    je upHandler                            
-    cmp ah, 50h                        
-    je downHandler
-            
+                               
     pop     di                      
     pop     dx
     pop     cx
@@ -54,7 +54,7 @@ handler PROC
     
     iret     
 
-downHandler:
+downMove:
    
     mov ax,0C00h 
     int 21h
@@ -63,21 +63,21 @@ downHandler:
     
     mov ah, 3Dh			        
 	mov al, 0			     
-	lea dx, sourcePath       
+	lea dx, fileName       
 	mov cx, 0			        
 	int 21h                                     
 	                
-	mov sourceId, ax
+	mov fileId, ax
     
     mov al, 0                 
-    mov bx, sourceId
+    mov bx, fileId
 	mov ah, 42h           
 	mov cx, hignPartPosLastSymbol
 	mov dx, lowPartPosLastSymbol		 
 	int 21h                                 
     
     mov ah, 3Fh                  
-	mov bx, sourceID         
+	mov bx, fileId         
 	mov cx, 1            
 	lea dx, buffer                 
 	int 21h  
@@ -86,7 +86,7 @@ downHandler:
 	je endRead 
 	
 	mov al, 0               
-    mov bx, sourceId
+    mov bx, fileId
 	mov ah, 42h            
 	mov cx, 0
 	mov cx, hignPartPos
@@ -100,7 +100,7 @@ downHandler:
 readAndOutputSymbol: 
                                 
     mov ah, 3Fh                  
-	mov bx, sourceID            
+	mov bx, fileId            
 	mov cx, 1            
 	lea dx, buffer                  
 	int 21h   	  
@@ -127,7 +127,7 @@ addSpacesInEndString:
     jne checkEnd    
     
     mov al, 1                 
-    mov bx, sourceId
+    mov bx, fileId
 	mov ah, 42h             
 	mov cx, 0
 	mov dx, 0		 
@@ -168,7 +168,7 @@ print:
     
     mov flag,1 
     mov al, 1               
-    mov bx, sourceId
+    mov bx, fileId
     mov ah, 42h            
     mov cx, 0
     mov dx, 0		 
@@ -194,7 +194,7 @@ endRead:
        
 notNeedAddSpace:   
     mov al, 1                
-    mov bx, sourceId
+    mov bx, fileId
 	mov ah, 42h             
 	mov cx, 0
 	mov dx, 0		 
@@ -204,7 +204,7 @@ notNeedAddSpace:
 
 jmp endHandler
     
-upHandler:    
+upMove:    
 
     mov ax,0C00h 
     int 21h   
@@ -217,18 +217,16 @@ upHandler:
      
     mov ah, 3Dh			      
 	mov al, 0			 
-	lea dx, sourcePath     
+	lea dx, fileName     
 	mov cx, 0			        
 	int 21h                       
-	
-	jc restoreReg  
 	            
 	mov flag,0
 	mov flag_,0                
-	mov sourceId, ax 
+	mov fileId, ax 
 
     mov al, 0                 
-    mov bx, sourceId
+    mov bx, fileId
 	mov ah, 42h             
 	mov cx, hignPartPos
 	mov dx, lowPartPos	 		 
@@ -240,7 +238,7 @@ moveBack:
     push cx     
 
     mov al, 1                
-    mov bx, sourceId
+    mov bx, fileId
 	mov ah, 42h            
 	mov cx, -1
 	mov dx, -2		 
@@ -252,7 +250,7 @@ moveBack:
 	
 readNext:   
     mov ah, 3Fh                   
-	mov bx, sourceID                 
+	mov bx, fileId                 
 	mov cx, 1         
 	lea dx, buffer               
 	int 21h        
@@ -294,7 +292,7 @@ loopCl:
 readAndOutputSymbol_: 
                                 
     mov ah, 3Fh                 
-	mov bx, sourceID            
+	mov bx, fileId            
 	mov cx, 1      
 	lea dx, buffer            
 	int 21h  
@@ -323,7 +321,7 @@ addSpacesInEndString_:
      
     mov flag,1
     mov al, 1                 
-    mov bx, sourceId
+    mov bx, fileId
 	mov ah, 42h            
 	mov cx, 0
 	mov dx, 0		 
@@ -366,7 +364,7 @@ print_:
     
     mov flag,1 
     mov al, 1 
-    mov bx, sourceId
+    mov bx, fileId
     mov ah, 42h              
     mov cx, 0
     mov dx, 0		 
@@ -381,7 +379,7 @@ checkEnd_1_:
     jmp readAndOutputSymbol_
 endRead_:   
     mov al, 1                
-    mov bx, sourceId
+    mov bx, fileId
 	mov ah, 42h             
 	mov cx, 0
 	mov dx, 0		 
@@ -390,7 +388,7 @@ endRead_:
 	mov lowPartPosLastSymbol,ax  
 endHandler:
     mov ah, 3Eh            
-	mov bx, sourceID          
+	mov bx, fileId          
 	int 21h  
 	                       
 restoreReg:
@@ -457,7 +455,7 @@ readFile1:
 cycleReadNameFile1: 
          
     mov al,file[si]               
-    mov sourcePath[di],al                   
+    mov fileName[di],al                   
     inc di
     inc si   
     
@@ -470,13 +468,13 @@ cycleReadNameFile1:
 	
 setTXT: 
 
-    mov sourcePath[di],'.'
+    mov fileName[di],'.'
     inc di 
-    mov sourcePath[di],'t'
+    mov fileName[di],'t'
     inc di   
-    mov sourcePath[di],'x'
+    mov fileName[di],'x'
     inc di
-    mov sourcePath[di],'t'
+    mov fileName[di],'t'
     inc di    
    jmp checkEndCommandLine
   
@@ -484,25 +482,25 @@ readTXT:
 
    cmp file[si],'.'
    jne errorCommandLine 
-   mov sourcePath[di],'.'
+   mov fileName[di],'.'
    inc di
    inc si    
    cmp file[si],'t'
    jne errorCommandLine 
       
-   mov sourcePath[di],'t'
+   mov fileName[di],'t'
    inc di
    inc si  
    cmp file[si],'x'
    jne errorCommandLine 
 
-   mov sourcePath[di],'x'
+   mov fileName[di],'x'
    inc di
    inc si 
    cmp file[si],'t'
    jne errorCommandLine 
    
-   mov sourcePath[di],'t'
+   mov fileName[di],'t'
    inc di
    inc si   
   
@@ -518,18 +516,18 @@ checkEndCommandLine:
    
 setASCIIZ:    
 
-    mov  byte ptr sourcePath[di],0 
+    mov  byte ptr fileName[di],0 
       
     mov ah, 3Dh			      
 	mov al, 0			 
-	lea dx, sourcePath     
+	lea dx, fileName     
 	mov cx, 0			        
 	int 21h                       
 	
 	jc errorCommandLine  
 	mov bx,ax
     mov ah, 3Eh                    
-	int 21h 
+ 	int 21h 
      ret           
 getFileName endp                              
                                                                       
