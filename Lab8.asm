@@ -419,11 +419,7 @@ escHandler:
     mov es,cs:2ch 
     mov ah,49h 
     int 21h   
-    
-    push cs 
-    pop es  
-    mov ah,49h  
-    int 21h           
+            
 	iret                              
 ENDP                                  
    
