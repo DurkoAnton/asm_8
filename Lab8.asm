@@ -10,18 +10,19 @@ buffer                db  128 dup(?)
 sourcePath            db  128 dup(?)
 hignPartPos           dw 0       
 lowPartPos            dw 0   
-hignPartPosLastSymbol          dw 0       
-lowPartPosLastSymbol           dw 0 
+hignPartPosLastSymbol dw 0       
+lowPartPosLastSymbol  dw 0 
 flag                  db ?          
-flag_                    db ?
+flag_                 db ?
 error                 db "Open file error!$"    
 file                  db 128 dup(?) 
-sourceID              dw  0
+sourceID              dw 0
 intOldHandler         dd 0                    
                                       
 handler PROC                        
 	pushf  
-	call    cs:intOldHandler                                                      
+	call  cs:intOldHandler    
+	                                                
 	push ds                           
     push es                           
 	push ax                           
@@ -32,29 +33,31 @@ handler PROC
                                       
 	push cs                           
 	pop ds                            
-    
-  ;  mov ah,0h
-;    int 16h
-    in  al, 60h         
-    cmp al, 01h                     
+
+    mov ah,11h   
+    int 16h 
+               
+    cmp ah, 01h                     
     je escHandler
-    cmp al, 48h
+    cmp ah, 48h
     je upHandler                            
-    cmp al, 50h                        
+    cmp ah, 50h                        
     je downHandler
-        
+            
     pop     di                      
     pop     dx
     pop     cx
     pop     bx
     pop     ax
     pop     es
-    pop     ds   
+    pop     ds       
     
-    jmp dword ptr cs:intOldHandler    
-     
-downHandler:   
- 
+    iret     
+
+downHandler:
+   
+    mov ax,0C00h 
+    int 21h
     mov flag,0
     mov flag_,0      
     
@@ -62,19 +65,17 @@ downHandler:
 	mov al, 0			     
 	lea dx, sourcePath       
 	mov cx, 0			        
-	int 21h                        
-	
-	jc noFile_End              
+	int 21h                                     
 	                
 	mov sourceId, ax
     
-    mov al, 0                ; 
+    mov al, 0                 
     mov bx, sourceId
 	mov ah, 42h           
 	mov cx, hignPartPosLastSymbol
 	mov dx, lowPartPosLastSymbol		 
-	int 21h                               
-	
+	int 21h                                 
+    
     mov ah, 3Fh                  
 	mov bx, sourceID         
 	mov cx, 1            
@@ -152,7 +153,9 @@ notEndString:
     jne print
     jmp readAndOutputSymbol 
 print:
-    call printInVideoMemory   
+    mov al,buffer[0]
+    mov es:[di], al
+    add di, 2   
     
     mov bx,160
     mov ax,di  
@@ -179,7 +182,17 @@ checkEnd_:
 
 jmp readAndOutputSymbol
  
-endRead:    
+endRead: 
+
+    cmp di,4000
+    jge notNeedAddSpace
+
+    mov al,' '  
+    mov es:[di],al
+    add di,2  
+    jmp endRead
+       
+notNeedAddSpace:   
     mov al, 1                
     mov bx, sourceId
 	mov ah, 42h             
@@ -191,7 +204,11 @@ endRead:
 
 jmp endHandler
     
-upHandler:      
+upHandler:    
+
+    mov ax,0C00h 
+    int 21h   
+       
     xor si,si
     add si,hignPartPosLastSymbol
     add si,lowPartPosLastSymbol    
@@ -204,7 +221,7 @@ upHandler:
 	mov cx, 0			        
 	int 21h                       
 	
-	jc noFile_End  
+	jc restoreReg  
 	            
 	mov flag,0
 	mov flag_,0                
@@ -215,14 +232,14 @@ upHandler:
 	mov ah, 42h             
 	mov cx, hignPartPos
 	mov dx, lowPartPos	 		 
-	int 21h                                      
+	int 21h                                       
     
     mov cx,160    
     
 moveBack:  
     push cx     
 
-    mov al, 1                ; 
+    mov al, 1                
     mov bx, sourceId
 	mov ah, 42h            
 	mov cx, -1
@@ -332,8 +349,10 @@ notEndString_:
     jne print_
     jmp  readAndOutputSymbol_ 
 print_: 
-
-    call printInVideoMemory 
+    
+    mov al,buffer[0]
+    mov es:[di], al
+    add di, 2
       
     mov bx,160
     mov ax,di  
@@ -374,11 +393,8 @@ endHandler:
 	mov bx, sourceID          
 	int 21h  
 	                       
-noFile_End:
-                         
-    mov al, 20h                       
-    out 20h, al                        
-    
+restoreReg:
+                                               
 	pop di                            
 	pop dx                            
 	pop cx                            
@@ -386,59 +402,36 @@ noFile_End:
 	pop ax                            
 	pop es                            
 	pop ds	                          
-	jmp intEnd    
-       
-escHandler:    
-                           
-    mov al, 20h                       
-    out 20h, al                        
-    
-	pop di                            
-	pop dx                            
-	pop cx                            
-	pop bx                          
-	pop ax                            
-	pop es                            
-	pop ds	                          
-	
+    iret     
+escHandler:        
+
     mov ax,2509h
     mov dx,word ptr cs:[intOldHandler]
     mov ds,word ptr cs:[intOldHandler+2]
     int 21h 
-    
+   
+	pop di                            
+	pop dx                            
+	pop cx                            
+	pop bx                         
+	pop ax                            
+	pop es                            
+	pop ds	                          
+	
     mov es,cs:2ch 
-    mov ah,49h
-    int 21h                          
+    mov ah,49h 
+    int 21h   
     
-intEnd:     
+    push cs 
+    pop es  
+    mov ah,49h  
+    int 21h           
 	iret                              
 ENDP                                  
-
-printInVideoMemory proc
-    push ax
-    push cx
-    push dx
-    push si
-    
-    lea si, buffer
-     
-    mov cx,1
-
-    mov al, [si] 
-    mov es:[di], al
-    inc si
-    add di, 2
-
-    pop si
-    pop dx
-    pop cx
-    pop ax       
-    ret
-endp 
    
-parseCMD PROC                             
+getFileName PROC                             
 	     
-xor ch,ch      
+    xor ch,ch      
 	mov cl, es:[80h]     
 	mov bl,cl  
 	dec bl
@@ -459,8 +452,8 @@ checkSpace1:
 readFile1:
          
     mov di,0        
-     mov si,0    
-     mov cl,bl
+    mov si,0    
+    mov cl,bl
 cycleReadNameFile1: 
          
     mov al,file[si]               
@@ -485,7 +478,7 @@ setTXT:
     inc di
     mov sourcePath[di],'t'
     inc di    
-   jmp endReadNameFile1
+   jmp checkEndCommandLine
   
 readTXT:     
 
@@ -512,19 +505,20 @@ readTXT:
    mov sourcePath[di],'t'
    inc di
    inc si   
- 
-endReadNameFile1: 
   
-  checkEndCommandLine: 
-  mov al,file[si]
-  cmp file[si],0Dh
+checkEndCommandLine: 
+
+   mov al,file[si]
+   cmp file[si],0Dh
    je setASCIIZ
    cmp file[si],' '
    jne errorCommandLine
    inc si
-   jmp   checkEndCommandLine
-setASCIIZ:
-   mov  byte ptr sourcePath[di],0 
+   jmp  checkEndCommandLine       
+   
+setASCIIZ:    
+
+    mov  byte ptr sourcePath[di],0 
       
     mov ah, 3Dh			      
 	mov al, 0			 
@@ -536,20 +530,19 @@ setASCIIZ:
 	mov bx,ax
     mov ah, 3Eh                    
 	int 21h 
- ret         ;  
-endp
-  
-setHandler PROC                     
-	push bx                           
-	push dx                         
-                                      
+     ret           
+getFileName endp                              
+                                                                      
+main:
+
+	call getFileName                     
+                                     
 	cli                              
                                       
 	mov ah, 35h                      
 	mov al, 09h                   
 	int 21h                            
-                                                                                                                       
-	                                  
+                                                                                                                                                         
 	mov word ptr  intOldHandler, bx     
 	mov word ptr  intOldHandler + 2, es
                                      
@@ -561,29 +554,18 @@ setHandler PROC
 	mov dx, offset handler            
 	int 21h                          
                                       
-	sti                                                                   
-                                      
-	pop dx                          
-	pop bx                            
-	ret                               
-ENDP                                  
-                                                                      
-main:
-	call parseCMD                     
-                                     
-	call setHandler                			          
+	sti                    			          
     
-     mov ax, 0b800h
+    mov ax, 0b800h
     mov es, ax    
     xor di,di 
-    mov cx,80
-    imul cx,25    
+    mov cx,2000 
     
 loopClear:
     mov al, ' ' 
     mov es:[di], al
     add di, 2
-    loop loopClear  
+loop loopClear  
                                       
 	mov ah, 31h                      
 	mov al, 0                                                              
@@ -597,4 +579,4 @@ loopClear:
 	int 21h     
 	int 20h                                   
                              
-end start                                       
+end start       
